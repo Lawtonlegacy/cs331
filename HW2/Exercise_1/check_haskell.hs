@@ -11,6 +11,7 @@ module Main where
 
 -- main
 -- Print second secret message.
+main :: IO ()
 main = do
     putStrLn "Secret message #2:"
     putStrLn ""
@@ -19,6 +20,7 @@ main = do
 
 -- secret_message
 -- A mysterious message.
+secret_message :: [Char]
 secret_message = map xk xj where
     xa = [64,1,-39,49,0,-5]
     xb = [-15,-39,50,-7,-49,34]
