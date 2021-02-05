@@ -6,3 +6,19 @@
 local pa2 = {}
 
 -- function filterArray
+
+function pa2.filterArray(p,t)
+    local arr = {}
+    local i = 1
+    for k,v in ipairs(t) do 
+        if p(v) == true then
+            arr[i] = v
+            i = i+1
+        end
+    end
+    return arr
+end
+
+
+
+return pa2
