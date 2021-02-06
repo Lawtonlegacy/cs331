@@ -19,6 +19,9 @@ function pa2.filterArray(p,t)
     return arr
 end
 
+function pa2.concatMax(str, int)
+    return string.rep(str,math.floor(int/str:len()))
+end
 
 
 return pa2
