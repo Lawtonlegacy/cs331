@@ -41,6 +41,30 @@ function pa2.collatz(k)
     return iterator
 end
 
+function pa2.substrings(s)
+    -- base case empty string
+    coroutine.yield("")
+    local len = s:len()
+    local sublen = 1
+    local from = 1
+    local to = 0
+    local numsubs = len*(len+1)/2
+
+    for i=1, numsubs do
+        to = to+1
+        if to > len then
+            from = from+1
+            to = from
+        end
+        local substring = s:sub(from,to)
+        if #substring ~= 0 then
+            coroutine.yield(substring)
+        end
+        i = i+1
+    end
+end
+
+
 
 
 return pa2
