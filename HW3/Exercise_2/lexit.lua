@@ -174,6 +174,14 @@ function lexit.lex(program)
         return program:sub(pos+1, pos+1)
     end
 
+    local function afterNextChar()
+        return program:sub(pos+2, pos+2)
+    end
+
+    local function prevChar()
+        return program:sub(pos-1, pos-1)
+    end
+    
     -- drop1
     -- Move pos to the next character.
     local function drop1()
@@ -241,13 +249,16 @@ function lexit.lex(program)
             state = DIGIT
         elseif ch == "." then
             add1()
-            state = DOT
+            state = DONE
+            category = lexit.PUNCT
         elseif ch == "+" then
             add1()
-            state = PLUS
+            state = DONE
+            category = lexit.OP
         elseif ch == "-" then
             add1()
-            state = MINUS
+            state = DONE
+            category = lexit.OP
         elseif ch == "*" or ch == "/" or ch == "=" then
             add1()
             state = STAR
@@ -291,9 +302,22 @@ function lexit.lex(program)
     local function handle_DIGIT()
         if isDigit(ch) then
             add1()
+        elseif ch == "e" or ch == "E" then
+            local str = lexstr
+            if str:find(ch,1) then
+                state = DONE
+                category = lexit.NUMLIT          
+            elseif isDigit(nextChar()) then
+                add1()
+            elseif nextChar() == "+" and isDigit(afterNextChar()) then
+                add1()
+                add1()
+            else
+                state = DONE
+                category = lexit.NUMLIT
+            end
         elseif ch == "." then
-            add1()
-            state = DIGDOT
+           state = DIGDOT
         else
             state = DONE
             category = lexit.NUMLIT
@@ -317,7 +341,7 @@ function lexit.lex(program)
             state = DIGDOT
         else
             state = DONE
-            category = lexit.OP
+            category = lexit.PUNCT
         end
     end
 
