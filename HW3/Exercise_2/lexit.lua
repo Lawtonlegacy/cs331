@@ -1,3 +1,9 @@
+-- lexit.lua
+-- Robert Lawton
+-- 11 February 2021
+-- lexit module for CS 331: HW3 Exercise 2
+-- Heavily based off lexer.lua by Glenn Chappell
+
 -- *********************************************************************
 -- Module Table Initialization
 -- *********************************************************************
@@ -193,17 +199,15 @@ function lexit.lex(program)
             end
 
             -- Done if no comment
-            if currChar() ~= "/" or nextChar() ~= "*" then
+            if currChar() ~= "#" then
                 break
             end
 
             -- Skip comment
-            drop1()  -- Drop leading "/"
-            drop1()  -- Drop leading "*"
+            drop1()  -- Drop leading "#"
             while true do
-                if currChar() == "*" and nextChar() == "/" then
-                    drop1()  -- Drop trailing "*"
-                    drop1()  -- Drop trailing "/"
+                if currChar() == "\n" then
+                    drop1()  -- Drop trailing "\n"
                     break
                 elseif currChar() == "" then  -- End of input?
                    return
@@ -260,8 +264,22 @@ function lexit.lex(program)
             add1()
         else
             state = DONE
-            if lexstr == "begin" or lexstr == "end"
-              or lexstr == "print" then
+            if lexstr == "and" 
+            or lexstr == "char"
+            or lexstr == "cr"
+            or lexstr == "def"
+            or lexstr == "dq"
+            or lexstr == "elseif"
+            or lexstr == "else"
+            or lexstr == "false"
+            or lexstr == "for"
+            or lexstr == "if"
+            or lexstr == "not"
+            or lexstr == "or"
+            or lexstr == "readnum"
+            or lexstr == "return"
+            or lexstr == "true"
+            or lexstr == "write" then
                 category = lexit.KEY
             else
                 category = lexit.ID
