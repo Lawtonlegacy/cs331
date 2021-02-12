@@ -150,11 +150,13 @@ function lexit.lex(program)
     local START  = 1
     local LETTER = 2
     local DIGIT  = 3
-    local DIGDOT = 4
-    local DOT    = 5
-    local PLUS   = 6
-    local MINUS  = 7
-    local STAR   = 8
+    local EXP    = 4
+    local DIGDOT = 5
+    local DOT    = 6
+    local PLUS   = 7
+    local MINUS  = 8
+    local STAR   = 9
+    local STRING = 10
 
     -- ***** Character-Related Utility Functions *****
 
@@ -262,6 +264,9 @@ function lexit.lex(program)
         elseif ch == "*" or ch == "/" or ch == "=" then
             add1()
             state = STAR
+        elseif ch == '"' then 
+            add1()
+            state = STRING
         else
             add1()
             state = DONE
@@ -302,22 +307,27 @@ function lexit.lex(program)
     local function handle_DIGIT()
         if isDigit(ch) then
             add1()
-        elseif ch == "e" or ch == "E" then
-            local str = lexstr
-            if str:find(ch,1) then
-                state = DONE
-                category = lexit.NUMLIT          
-            elseif isDigit(nextChar()) then
+        elseif ch == "e" or ch == "E" then     
+            if isDigit(nextChar()) then
                 add1()
+                state = EXP
             elseif nextChar() == "+" and isDigit(afterNextChar()) then
                 add1()
                 add1()
-            else
-                state = DONE
-                category = lexit.NUMLIT
+                state = EXP
             end
+            state = EXP
         elseif ch == "." then
            state = DIGDOT
+        else
+            state = DONE
+            category = lexit.NUMLIT
+        end
+    end
+
+    local function handle_EXP()
+        if isDigit(ch) then
+            add1()
         else
             state = DONE
             category = lexit.NUMLIT
@@ -404,6 +414,20 @@ function lexit.lex(program)
         end
     end
 
+    local function handle_STRING()
+        if ch == "" or ch == "\n" then
+            drop1()
+            state = DONE
+            category = lexit.MAL
+        elseif ch == '"' then
+            add1()
+            state = DONE
+            category = lexit.STRLIT
+        else
+            add1()
+        end
+    end
+
     -- ***** Table of State-Handler Functions *****
 
     handlers = {
@@ -411,11 +435,13 @@ function lexit.lex(program)
         [START]=handle_START,
         [LETTER]=handle_LETTER,
         [DIGIT]=handle_DIGIT,
+        [EXP]=handle_EXP,
         [DIGDOT]=handle_DIGDOT,
         [DOT]=handle_DOT,
         [PLUS]=handle_PLUS,
         [MINUS]=handle_MINUS,
         [STAR]=handle_STAR,
+        [STRING]=handle_STRING,
     }
 
     -- ***** Iterator Function *****
