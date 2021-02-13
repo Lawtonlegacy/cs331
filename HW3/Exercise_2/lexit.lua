@@ -157,6 +157,7 @@ function lexit.lex(program)
     local MINUS  = 8
     local STAR   = 9
     local STRING = 10
+    local OPERATOR = 11
 
     -- ***** Character-Related Utility Functions *****
 
@@ -176,10 +177,18 @@ function lexit.lex(program)
         return program:sub(pos+1, pos+1)
     end
 
+    -- afterNextChar
+    -- Return the character after the next, at index pos+2 in program. Return
+    -- value is a single-character string, or the empty string if pos+2
+    -- is past the end.
     local function afterNextChar()
         return program:sub(pos+2, pos+2)
     end
 
+    --prevChar
+    -- Return the previous character, at index pos-1 in program. Return
+    -- value is a single-character string, or the empty string if pos-1
+    -- is past the start.
     local function prevChar()
         return program:sub(pos-1, pos-1)
     end
@@ -264,6 +273,10 @@ function lexit.lex(program)
         elseif ch == "*" or ch == "/" or ch == "=" then
             add1()
             state = STAR
+        elseif ch == "!" or ch == "<" or ch == ">" 
+        or ch == "%" or ch == "[" or ch == "]" then
+            add1()
+            state = OPERATOR
         elseif ch == '"' then 
             add1()
             state = STRING
@@ -325,6 +338,7 @@ function lexit.lex(program)
         end
     end
 
+    -- State EXP: we are in a NUMLIT, and we have seen "e" or "E".
     local function handle_EXP()
         if isDigit(ch) then
             add1()
@@ -404,7 +418,7 @@ function lexit.lex(program)
     -- State STAR: we have seen a star ("*"), slash ("/"), or equal
     -- ("=") and nothing else.
     local function handle_STAR()  -- Handle * or / or =
-        if ch == "=" then
+        if ch == "=" and prevChar() ~= "*" and prevChar() ~= "/" then
             add1()
             state = DONE
             category = lexit.OP
@@ -414,6 +428,21 @@ function lexit.lex(program)
         end
     end
 
+    -- State OPERATOR: we have seen a "!", "<", ">", "%", "[", or "]"
+    -- and nothing else.
+    local function handle_OPERATOR()
+        if ch == "=" and (prevChar() ~= "=" and prevChar() ~= "]") then
+            add1()
+        elseif prevChar() == "!" then
+            state = DONE
+            category = lexit.PUNCT
+        else 
+            state = DONE
+            category = lexit.OP
+        end
+    end
+
+    -- State STRING: we have seen a double quote (") indicating this is a STRLIT
     local function handle_STRING()
         if ch == "" or ch == "\n" then
             drop1()
@@ -442,6 +471,7 @@ function lexit.lex(program)
         [MINUS]=handle_MINUS,
         [STAR]=handle_STAR,
         [STRING]=handle_STRING,
+        [OPERATOR]=handle_OPERATOR,
     }
 
     -- ***** Iterator Function *****
