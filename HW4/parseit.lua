@@ -1,10 +1,39 @@
--- parseit.lua  INCOMPLETE
--- Glenn G. Chappell
--- 2021-02-17
+-- parseit.lua
+-- Robert Lawton
+-- 22 February 2021
+-- parseit module for CS 331: HW4
 --
 -- For CS F331 / CSCE A331 Spring 2021
 -- Solution to Assignment 4, Exercise 1
+-- Skeleton Code is from Glenn Chappell
 -- Requires lexit.lua
+
+
+-- Grammar for Caracal
+
+-- 1.  	program	        →  	stmt_list
+-- 2.  	stmt_list	    →  	{ simple_stmt ‘;’ | complex_stmt }
+-- 3.  	simple_stmt	    →  	‘write’ ‘(’ [ write_arg { ‘,’ write_arg } ] ‘)’
+-- 4.  	 	            |  	‘return’ expr
+-- 5.  	 	            |  	ID ( ‘(’ ‘)’ | [ ‘[’ expr ‘]’ ] ‘=’ expr )
+-- 6.  	complex_stmt    →  	‘def’ ID ‘(’ ‘)’ ‘{’ stmt_list ‘}’
+-- 7.  	 	            |  	‘if’ ‘(’ expr ‘)’ ‘{’ stmt_list ‘}’ { ‘elseif’ ‘(’ expr ‘)’ ‘{’ stmt_list ‘}’ } [ ‘else’ ‘{’ stmt_list ‘}’ ]
+-- 8.  	 	            |  	‘for’ ‘(’ [ simple_stmt ] ‘;’ [ expr ] ‘;’ [ simple_stmt ] ‘)’ ‘{’ stmt_list ‘}’
+-- 9.  	write_arg	    →  	STRLIT
+-- 10.  	 	        |  	‘cr’
+-- 11.  	 	        |  	‘dq’
+-- 12.  	 	        |  	‘char’ ‘(’ expr ‘)’
+-- 13.  	 	        |  	expr
+-- 14.  expr	        →  	compare_expr { ( ‘and’ | ‘or’ ) compare_expr }
+-- 15.  compare_expr    →  	arith_expr { ( ‘==’ | ‘!=’ | ‘<’ | ‘<=’ | ‘>’ | ‘>=’ ) arith_expr }
+-- 16.  arith_expr	    →  	term { ( ‘+’ | ‘-’ ) term }
+-- 17.  term	        →  	factor { ( ‘*’ | ‘/’ | ‘%’ ) factor }
+-- 18.  factor	        →  	‘(’ expr ‘)’
+-- 19.  	 	        |  	( ‘+’ | ‘-’ | ‘not’ ) factor
+-- 20.  	 	        |  	NUMLIT
+-- 21.  	 	        |  	( ‘true’ | ‘false’ )
+-- 22.  	 	        |  	‘readnum’ ‘(’ ‘)’
+-- 23.  	 	        |  	ID [ ‘(’ ‘)’ | ‘[’ expr ‘]’ ]
 
 
 local lexit = require "lexit"
@@ -241,7 +270,7 @@ end
 function parse_simple_stmt()
     local good, ast1, ast2, savelex, arrayflag
 
-    if matchString("write") then
+    if matchString("write") then                -- Simple-Statement: Write
         if not matchString("(") then
             return false, nil
         end
@@ -272,12 +301,48 @@ function parse_simple_stmt()
 
         return true, ast2
 
-    elseif matchString("return") then
-        -- TODO: WRITE THIS!!!
+    elseif matchString("return") then           -- Simple-Statement: Return
+        good, ast1 = parse_expr()
+        if not good then
+            return false, nil
+        end
+        return true, {RETURN_STMT, ast1}
 
+    elseif lexcat == lexit.ID then              -- Simple-Statement: Beginning with Identifier
+        savelex = lexstr
+        advance()
+        if matchString("(") then
+            if not matchString(")") then
+                return false, nil
+            end
+            return true, {FUNC_CALL, savelex}
+        end
+
+        if matchString("[") then
+            good, ast1 = parse_expr()
+            if not good then
+                return false, nil
+            end
+
+            if not matchString("]") then
+                return false, nil
+            end
+            ast1 = {ASSN_STMT, {ARRAY_VAR, savelex, ast1}}
+        else
+            ast1 = {ASSN_STMT, { SIMPLE_VAR, savelex, ast1}}
+        end
+
+        if matchString("=") then
+            good, ast2 = parse_expr()
+            if not good then
+                return false, nil
+            end
+
+            table.insert(ast1, ast2)
+            return true, ast1
+        end
     else
-        -- TODO: WRITE THIS!!!
-
+        return false, nil
     end
 end
 
@@ -288,13 +353,91 @@ end
 function parse_complex_stmt()
     local good, ast1, ast2, ast3, ast4, savelex
 
-    if matchString("def") then
-        -- TODO: WRITE THIS!!!
+    if matchString("def") then                  -- Complex-Statement: Function Definition
+        savelex = lexstr
+        if not matchCat(lexit.ID) then
+            return false, nil
+        end
 
-    elseif matchString("if") then
-        -- TODO: WRITE THIS!!!
+        if not (matchString("(") and matchString(")") and matchString ("{")) then
+            return false, nil
+        end
 
-    elseif matchString("for") then
+        good, ast1 = parse_stmt_list()
+        if not good then
+            return false, nil
+        end
+
+        if not matchString("}") then
+            return false, nil
+        end
+
+        return true, {FUNC_DEF, savelex, ast1}
+
+    elseif matchString("if") then               -- Complex-Statement: If
+        ast1 = { IF_STMT }
+        good, ast2 = parse_expr()
+        if not good then
+            return false, nil
+        end
+        table.insert(ast1, ast2)
+        
+        if not matchString("{") then
+            return false, nil
+        end
+        
+        good, ast2 = parse_stmt_list()
+        if not good then
+            return false, nil
+        end
+        
+        if not matchString("}") then
+            return false, nil
+        end
+        table.insert(ast1, ast2)
+        
+        while true do
+            if not matchString("elseif") then
+                break
+            end
+
+            good, ast2 = parse_expr()
+            if not good then
+                return false, nil
+            end
+            table.insert(ast1, ast2)
+
+            if not matchString("{") then
+                return false, nil
+            end
+
+            good, ast2 = parse_stmt_list()
+            if not good then
+                return false, nil
+            end
+
+            if not matchString("}") then
+                return false, nil
+            end
+            table.insert(ast1, ast2)            
+        end
+        
+        if matchString("else") then           
+            if not matchString("{") then
+                return false, nil
+            end
+            good, ast2 = parse_stmt_list()
+            if not good then
+                return false, nil
+            end                       
+            if not matchString("}") then
+                return false, nil
+            end
+            table.insert(ast1, ast2)         
+        end
+        return true, ast1
+
+    elseif matchString("for") then              -- Complex-Statement: For Loop
         if not matchString("(") then
             return false, nil
         end
@@ -350,8 +493,9 @@ function parse_complex_stmt()
         if not matchString("}") then
             return false, nil
         end
-
         return true, { FOR_LOOP, ast1, ast2, ast3, ast4 }
+    else
+        return false, nil
     end
 end
 
@@ -363,10 +507,26 @@ function parse_write_arg()
     local savelex, good, ast1
 
     savelex = lexstr
-    if matchCat(lexit.STRLIT) then
+    if matchCat(lexit.STRLIT) then              -- Write-Argument: StringLiteral
         return true, { STRLIT_OUT, savelex }
-
-        -- TODO: WRITE THIS!!!
+    elseif matchString("cr") then               -- Write-Argument: Carriage Return
+        return true,{CR_OUT}
+    elseif matchString("dq") then               -- Write-Argument: Double Quote
+        return true,{DQ_OUT}
+    elseif matchString("char") then             -- Write-Argument: Character Code
+        if not matchString("(") then
+            return false, nil
+        end
+        good, ast1 = parse_expr()
+        if not good then
+            return false, nil
+        end
+        if not matchString(")") then
+            return false, nil
+        end
+        return true, {CHAR_CALL, ast1}
+    else                                        -- Write-Argument: Expression
+        return parse_expr()
     end
 end
 
@@ -375,7 +535,26 @@ end
 -- Parsing function for nonterminal "expr".
 -- Function init must be called before this function is called.
 function parse_expr()
-    -- TODO: WRITE THIS!!!
+    local good, ast1, ast2, ast3, savelex
+    
+    good, ast1 = parse_compare_expr()
+    if not good then
+        return false, nil
+    end
+    
+    while true do
+        savelex = lexstr
+        if not (matchString("and") or matchString("or")) then
+            break
+        end
+
+        good, ast2 = parse_compare_expr()
+        if not good then
+            return false, nil
+        end  
+        ast1 = {{BIN_OP, savelex}, ast1, ast2}
+    end
+    return true, ast1
 end
 
 
@@ -383,7 +562,28 @@ end
 -- Parsing function for nonterminal "compare_expr".
 -- Function init must be called before this function is called.
 function parse_compare_expr()
-    -- TODO: WRITE THIS!!!
+    local good, ast1, ast2, ast3, savelex
+    
+    good, ast1 = parse_arith_expr()
+    if not good then
+        return false, nil
+    end
+    
+    while true do
+        savelex = lexstr
+        if not (matchString("==") or matchString("!=") 
+            or matchString("<") or matchString("<=") 
+            or matchString(">") or matchString(">=")) then
+            break
+        end
+    
+        good, ast2 = parse_arith_expr()
+        if not good then
+            return false, nil
+        end
+        ast1 = {{ BIN_OP, savelex }, ast1, ast2}
+    end
+    return true, ast1
 end
 
 
@@ -391,7 +591,27 @@ end
 -- Parsing function for nonterminal "arith_expr".
 -- Function init must be called before this function is called.
 function parse_arith_expr()
-    -- TODO: WRITE THIS!!!
+    local good, ast1, ast2, ast3, savelex
+    
+    good, ast1 = parse_term()      
+    if not good then
+        return false, nil
+    end
+        
+    while true do                  
+        savelex = lexstr
+        if not (matchString("+") or matchString("-")) then
+            break
+        end
+
+        good, ast2 = parse_term()
+        if not good then
+            return false, nil
+        end
+        ast1 = {{BIN_OP, savelex}, ast1, ast2}
+    end
+    
+    return true, ast1
 end
 
 
@@ -399,7 +619,26 @@ end
 -- Parsing function for nonterminal "term".
 -- Function init must be called before this function is called.
 function parse_term()
-    -- TODO: WRITE THIS!!!
+    local good, ast1, ast2, ast3, savelex
+    
+    good, ast1 = parse_factor()     
+    if not good then
+        return false, nil
+    end
+      
+    while true do                   
+        savelex = lexstr
+        if not (matchString("*") or matchString("/") or matchString("%")) then
+            break
+        end
+
+        good, ast2 = parse_factor()
+        if not good then
+            return false, nil
+        end
+        ast1 = {{BIN_OP, savelex}, ast1, ast2}
+    end
+    return true, ast1
 end
 
 
@@ -407,7 +646,59 @@ end
 -- Parsing function for nonterminal "factor".
 -- Function init must be called before this function is called.
 function parse_factor()
-    -- TODO: WRITE THIS!!!
+    local good, ast1, ast2, savelex
+
+    savelex = lexstr
+    -- Parenthesized Expression
+    if matchString("(") then                    
+        good, ast1 = parse_expr()
+        if not good then
+            return false, nil
+        end
+        if not matchString(")") then
+            return false, nil
+        end
+        return true, ast1
+
+    -- Unary Operator
+    elseif (matchString("+") or matchString("-") or matchString("not")) then
+        good, ast1 = parse_factor()
+        if not good then
+            return false, nil
+        end
+        return true, { { UN_OP, savelex}, ast1 }
+        
+    -- Numeric Literal
+    elseif matchCat(lexit.NUMLIT) then
+        return true, { NUMLIT_VAL, savelex }
+        
+    -- Boolean Literal
+    elseif matchString("true") or matchString("false") then
+        return true, { BOOLLIT_VAL, savelex }
+        
+    -- Read Number
+    elseif (matchString("readnum") and matchString("(") and matchString(")")) then
+        return true, { READNUM_CALL }
+        
+    -- Beginning with Identifier
+    elseif matchCat(lexit.ID) then
+        if matchString("(") and matchString(")") then
+            return true, { FUNC_CALL, savelex }
+        elseif matchString("[") then
+            good, ast1 = parse_expr()
+            if not good then
+                return nil, false
+            end
+            if not matchString("]") then
+                return nil, false
+            end
+            return true, {ARRAY_VAR, savelex, ast1}       
+        else
+            return true, {SIMPLE_VAR, savelex}
+        end
+    else
+        return false, nil
+    end
 end
 
 
