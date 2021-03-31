@@ -53,7 +53,8 @@ filterAB temp list1 list2 =
 
 
 -- sumEvenOdd
--- 
+-- This takes a list of numbers. It returns a tuple of two numbers: the sum of the even-index items 
+-- in the given list, and the sum of the odd-index items in the given list. Indices are zero-based.
 sumEvenOdd :: Num a => [a] -> (a, a)
 sumEvenOdd xs = (foldr (+) 0 evenNumbers, foldr (+) 0 oddNumbers) where
   evenNumbers = map fst $ filter (even . snd) $ zip xs [0..]
